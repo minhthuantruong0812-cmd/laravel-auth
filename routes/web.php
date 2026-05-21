@@ -1,8 +1,20 @@
 <?php
 
+use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\CategoryController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Middleware\CheckAdmin; // Gọi middleware kiểm tra Admin
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Middleware\CheckAdmin;
+
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
 
 // 1. Nhóm Guest: Chỉ truy cập được khi CHƯA đăng nhập
 Route::middleware('guest')->group(function () {
@@ -13,20 +25,42 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
 });
 
-// 2. Nhóm Auth: Chỉ truy cập được khi ĐÃ đăng nhập (User thường & Admin đều vào được)
+// 2. Nhóm Auth: Chỉ truy cập được khi ĐÃ đăng nhập (Tất cả User & Admin đều vào được)
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
-// 3. Nhóm Admin: Bắt buộc Đã đăng nhập VÀ phải có role = 1 (Chỉ Admin mới vào được)
+// 3. Nhóm Admin: Bắt buộc Đã đăng nhập VÀ phải vượt qua trạm kiểm soát CheckAdmin
 Route::middleware(['auth', CheckAdmin::class])->group(function () {
-    Route::get('/admin', function () {
-        return '<h1 style="color: blue; text-align: center; margin-top: 50px;">Chào mừng Sếp! Đây là trang quản trị nội bộ.</h1>';
-    });
+
+    Route::resource('/admin/users', UserController::class);
+
+    Route::resource('/admin/categories', CategoryController::class);
+
+    Route::resource('/admin/products', ProductController::class);
+
+    Route::resource('/admin/orders', OrderController::class)
+        ->only(['index', 'show']);
 });
 
-// 4. Route mặc định: Vào thẳng trang login
+// 4. Route mặc định: Cứ vào trang chủ (/) là tự động đá sang trang login
 Route::get('/', function () {
     return redirect('/login');
 });
+
+Route::get('/products', [ProductController::class, 'shop']);
+
+Route::get('/products/{slug}', [ProductController::class, 'detail']);
+
+Route::get('/cart', [CartController::class, 'index']);
+
+Route::post('/add-to-cart/{id}', [CartController::class, 'add']);
+
+Route::post('/cart/update/{id}', [CartController::class, 'update']);
+
+Route::get('/cart/remove/{id}', [CartController::class, 'remove']);
+
+Route::get('/checkout', [CheckoutController::class, 'index']);
+
+Route::post('/checkout', [CheckoutController::class, 'store']);

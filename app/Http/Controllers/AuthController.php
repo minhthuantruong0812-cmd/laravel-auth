@@ -34,6 +34,7 @@ class AuthController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            // Nếu bạn muốn đăng ký mới tự động là user, có thể thêm 'role' => 'user' ở đây (tùy chọn vì DB đã set default)
         ]);
 
         return redirect('/login')->with('success', 'Đăng ký thành công! Vui lòng đăng nhập.');
@@ -45,7 +46,7 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    // 4. Xử lý đăng nhập (Đã tích hợp Bonus: Ghi nhớ đăng nhập & Giới hạn số lần sai)
+    // 4. Xử lý đăng nhập (Đã tích hợp Bonus & THÊM PHÂN QUYỀN CHUYỂN HƯỚNG)
     public function login(Request $request)
     {
         $request->validate([
@@ -70,9 +71,19 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             // Đăng nhập đúng -> Xóa bộ đếm lỗi
             RateLimiter::clear($throttleKey);
-
             $request->session()->regenerate();
-            return redirect()->intended('/dashboard');
+
+            // ---------- PHẦN CODE CẬP NHẬT ĐỂ PHÂN QUYỀN ----------
+            $user = Auth::user(); // Lấy thông tin người dùng vừa login thành công
+
+            // Nếu là admin -> Chuyển hướng thẳng vào trang quản lý User
+            if ($user->role === 'admin') {
+                return redirect('/admin/users');
+            }
+
+            // Nếu là user thường -> Đưa về trang Dashboard
+            return redirect('/dashboard');
+            // -------------------------------------------------------
         }
 
         // Đăng nhập sai -> Tăng bộ đếm lỗi lên 1. Mức phạt: khóa 60 giây nếu thử sai 5 lần.
